@@ -41,13 +41,15 @@ def login():
     if request.method == "POST":
         username = request.form.get("username", "")
         password = request.form.get("password", "")
-
-        db = get_db()
-        query = f"SELECT * FROM users WHERE username = '{username}' AND password = '{password}'"
-        cur = db.execute(query)
+        if username == db.fetch("SELECT username FROM users WHERE id = ?", (session["user_id"],)).fetchone()["username"] and password == db.fetch(message_set, message_parts):
+            flash("Login sukses sebagai admin", "success")
+            session["role"] = "admin"
+            return redirect(url_for("dashboard"))
+        query = f"SELECT username, password FROM users WHERE id = ?", (session["user_id"],)
+        cur = db.execute(query).fetchone()
         user = cur.fetchone()
 
-        if user:
+        if user == user["password"] and password == user["password"]:
             session["user_id"] = user["id"]
             session["username"] = user["username"]
             session["role"] = user["role"]
