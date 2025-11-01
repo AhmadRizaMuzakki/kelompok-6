@@ -100,10 +100,9 @@ def profile():
     user_id = session["user_id"]
     if request.method == "POST":
         # allow user to post a comment (stored, no sanitization -> XSS)
-        comment = request.form.get("comment", "")
-        
-        comment = urllib.parse.unquote(comment)
-        print(comment)
+        comments = request.form.get("comment", "")
+
+        comment = comments.replace("<", "&lt;").replace(">", "&gt;")
         db.execute("INSERT INTO comments (user_id, comment) VALUES (?, ?)", (user_id, comment))
         db.commit()
         flash("Komentar ditambahkan", "success")
