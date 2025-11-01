@@ -1,6 +1,10 @@
+import html
 from flask import Flask, render_template, request, redirect, url_for, session, g, flash
 import sqlite3
 import os
+
+import re
+from html import escape
 import urllib.parse
 
 app = Flask(__name__)
@@ -97,6 +101,9 @@ def profile():
     if request.method == "POST":
         # allow user to post a comment (stored, no sanitization -> XSS)
         comment = request.form.get("comment", "")
+        
+        comment = urllib.parse.unquote(comment)
+        print(comment)
         db.execute("INSERT INTO comments (user_id, comment) VALUES (?, ?)", (user_id, comment))
         db.commit()
         flash("Komentar ditambahkan", "success")
