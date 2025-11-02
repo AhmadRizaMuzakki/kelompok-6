@@ -1,17 +1,25 @@
-import html
+
+import secrets
 from flask import Flask, render_template, request, redirect, url_for, session, g, flash
 import sqlite3
 import os
 
-import re
 from html import escape
-import urllib.parse
 
 app = Flask(__name__)
 app.secret_key = "dev-secret-key-please-change"  # untuk lab saja
 
+
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 DATABASE = os.path.join(BASE_DIR, "app.db")
+
+def generate_csrf_token():
+    token = secrets.token_hex(16)
+    session['csrf_token'] = token
+    return token
+
+def validate_csrf_token(request_token):
+    return request_token == session.get('csrf_token')
 
 def get_db():
     db = getattr(g, "_database", None)
@@ -102,7 +110,7 @@ def profile():
         # allow user to post a comment (stored, no sanitization -> XSS)
         comments = request.form.get("comment", "")
 
-        comment = comments.replace("<", "&lt;").replace(">", "&gt;")
+        comment = escape(comments)
         db.execute("INSERT INTO comments (user_id, comment) VALUES (?, ?)", (user_id, comment))
         db.commit()
         flash("Komentar ditambahkan", "success")
@@ -110,12 +118,12 @@ def profile():
 
     user = db.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
     comments = db.execute("SELECT c.*, u.username FROM comments c JOIN users u ON c.user_id = u.id ORDER BY c.id DESC").fetchall()
-    return render_template("profile.html", user=user, comments=comments)
+    return render_template("profile.html", user=user, comments=comments, csrf_token=generate_csrf_token())
 
 # -----------------------
 # TRANSFER 
 # -----------------------
-@app.route("/transfer", methods=["GET", "POST"])
+@app.route("/transfer", methods=["GET","POST"])
 @login_required
 def transfer():
     db = get_db()
@@ -123,6 +131,10 @@ def transfer():
     account = db.execute("SELECT * FROM accounts WHERE user_id = ?", (user_id,)).fetchone()
 
     if request.method == "POST":
+        request_token = request.form.get('csrf_token')
+        if not validate_csrf_token(request_token):
+            flash("terjadi kesalahan", "danger")
+            return redirect(url_for("transfer"))
         to_user = request.form.get("to_user")
         amount = int(request.form.get("amount", "0"))
         # simple transfer logic (no transaction safety for simplicity)
@@ -147,7 +159,7 @@ def transfer():
         flash(f"Transfer {amount} ke {to_user} berhasil", "success")
         return redirect(url_for("dashboard"))
 
-    return render_template("transfer.html", account=account)
+    return render_template("transfer.html", account=account, csrf_token=generate_csrf_token())
 
 # -----------------------
 # ADMIN (demonstrate route protected)
