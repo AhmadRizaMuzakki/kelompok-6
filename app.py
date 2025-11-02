@@ -69,7 +69,7 @@ def login():
         else:
             flash("Login gagal", "danger")
 
-    return render_template("login.html")
+    return render_template("login.html", csrf_token=generate_csrf_token())
 
 @app.route("/logout")
 def logout():
